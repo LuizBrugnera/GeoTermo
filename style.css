@@ -1,0 +1,23 @@
+/* Para a barra de rolagem da caixa de sugestões */
+#suggestions-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+#suggestions-box::-webkit-scrollbar-track {
+    background: #2d3748; /* bg-gray-800 */
+}
+
+#suggestions-box::-webkit-scrollbar-thumb {
+    background: #4a5568; /* bg-gray-600 */
+    border-radius: 4px;
+}
+
+#suggestions-box::-webkit-scrollbar-thumb:hover {
+    background: #718096; /* bg-gray-500 */
+}
+
+/* Estilo para a barra de progresso */
+.progress-bar-gradient {
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #eab308, #84cc16, #22c55e);
+    background-size: 200% 100%; /* Permite que o gradiente preencha a barra */
+}

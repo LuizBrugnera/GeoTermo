@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GeoTermo</title>
+    <!-- Incluindo o Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CSS customizado (opcional, para detalhes finos) -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  </head>
+  <body
+    class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans"
+  >
+    <header class="text-center mb-6">
+      <h1 class="text-4xl md:text-5xl font-bold text-emerald-400">
+        GeoTermo 🌍
+      </h1>
+      <p class="text-gray-400 mt-2">Adivinhe o país secreto em 6 tentativas!</p>
+    </header>
+
+    <main id="game-container" class="w-full max-w-2xl">
+      <!-- Cabeçalho da grade de respostas -->
+      <div
+        class="hidden md:grid grid-cols-4 gap-2 text-sm font-bold text-gray-400 mb-2 px-2"
+      >
+        <div>País</div>
+        <div class="text-center">Distância</div>
+        <div class="text-center">Direção</div>
+        <div class="text-center">Proximidade</div>
+      </div>
+
+      <!-- Container para as tentativas -->
+      <div id="guesses-container" class="space-y-2 mb-4">
+        <!-- As tentativas serão inseridas aqui pelo JavaScript -->
+      </div>
+
+      <!-- Formulário de adivinhação -->
+      <div id="input-section" class="relative">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            id="country-input"
+            placeholder="Digite o nome de um país..."
+            class="w-full p-3 bg-gray-800 border-2 border-gray-600 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
+            autocomplete="off"
+            aria-label="Entrada para nome do país"
+          />
+          <button
+            id="guess-button"
+            class="bg-emerald-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+          >
+            Adivinhar
+          </button>
+        </div>
+        <!-- Caixa de sugestões para autocomplete -->
+        <div
+          id="suggestions-box"
+          class="absolute z-10 w-full bg-gray-800 border border-gray-700 rounded-lg mt-1 max-h-48 overflow-y-auto hidden"
+        >
+          <!-- Sugestões serão inseridas aqui -->
+        </div>
+      </div>
+
+      <!-- Mensagem de fim de jogo -->
+      <div
+        id="game-over-message"
+        class="text-center mt-6 p-4 bg-gray-800 rounded-lg hidden"
+      >
+        <p id="final-text" class="text-xl mb-4"></p>
+        <button
+          id="share-button"
+          class="bg-blue-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          Compartilhar Resultado 📋
+        </button>
+      </div>
+    </main>
+
+    <footer class="text-center mt-8 text-gray-500 text-sm">
+      <p>Inspirado em Wordle, Termo e Worldle.</p>
+    </footer>
+
+    <!-- Script do Jogo -->
+    <script src="script.js"></script>
+  </body>
+</html>
