@@ -21,3 +21,17 @@
     background: linear-gradient(90deg, #ef4444, #f59e0b, #eab308, #84cc16, #22c55e);
     background-size: 200% 100%; /* Permite que o gradiente preencha a barra */
 }
+
+/* NOVOS ESTILOS QUE ESTAVAM FALTANDO */
+.game-board {
+    background-color: #1f2937; /* bg-gray-800 */
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 0.75rem; /* p-3 */
+    transition: all 0.3s;
+    border: 2px solid transparent;
+}
+
+.game-board-solved {
+    border-color: #10b981; /* border-emerald-500 */
+    opacity: 0.6;
+}

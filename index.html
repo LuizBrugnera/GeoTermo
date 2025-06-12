@@ -4,173 +4,114 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GeoTermo</title>
-    <!-- Incluindo o Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- --- NOVO: Leaflet.js para o mapa interativo --- -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
     />
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-
-    <!-- CSS customizado -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
-
-    <!-- --- NOVO: Estilo para o container do mapa --- -->
-    <style>
-      #map {
-        height: 350px;
-        border-radius: 8px;
-        margin-top: 1rem;
-      }
-    </style>
+    <!-- A tag <style> aqui não é mais necessária para os botões -->
   </head>
   <body
-    class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans"
+    class="bg-gray-900 text-white flex flex-col items-center min-h-screen p-4 font-sans"
   >
     <header class="text-center mb-6">
       <h1 class="text-4xl md:text-5xl font-bold text-emerald-400">
         GeoTermo 🌍
       </h1>
-      <p class="text-gray-400 mt-2">
-        Adivinhe o país secreto do dia em 6 tentativas!
-      </p>
+      <p id="subtitle" class="text-gray-400 mt-2">Escolha um modo de jogo!</p>
     </header>
 
-    <!-- CONTAINER DO JOGO ATIVO -->
-    <main id="game-container" class="w-full max-w-3xl">
-      <!-- Cabeçalho da grade -->
-      <div
-        class="hidden md:grid grid-cols-5 gap-2 text-sm font-bold text-gray-400 mb-2 px-2"
-      >
-        <div>País</div>
-        <div class="text-center">Distância</div>
-        <div class="text-center">Direção</div>
-        <div class="text-center">População</div>
-        <div class="text-center">Proximidade</div>
+    <!-- ==== TELA DE SELEÇÃO DE MODO ==== -->
+    <div id="mode-selection-container" class="w-full max-w-md">
+      <div class="space-y-4">
+        <!-- CORREÇÃO: Classes do Tailwind aplicadas diretamente aqui -->
+        <button
+          id="mode-solo"
+          class="w-full p-6 bg-gray-800 rounded-lg text-xl font-bold hover:bg-emerald-700 transition-all transform hover:scale-105"
+        >
+          Solo (Diário)
+        </button>
+        <button
+          id="mode-duplo"
+          class="w-full p-6 bg-gray-800 rounded-lg text-xl font-bold hover:bg-emerald-700 transition-all transform hover:scale-105"
+        >
+          Duplo
+        </button>
+        <button
+          id="mode-quadruplo"
+          class="w-full p-6 bg-gray-800 rounded-lg text-xl font-bold hover:bg-emerald-700 transition-all transform hover:scale-105"
+        >
+          Quádruplo
+        </button>
       </div>
+      <div
+        id="stats-preview-section"
+        class="mt-6 p-4 bg-gray-800 rounded-lg hidden"
+      ></div>
+    </div>
 
-      <!-- Container para as tentativas -->
-      <div id="guesses-container" class="space-y-2 mb-4"></div>
-
-      <!-- Formulário de adivinhação -->
-      <div id="input-section" class="relative">
+    <!-- ==== CONTAINER PRINCIPAL DO JOGO (Agora dinâmico) ==== -->
+    <main id="game-container" class="w-full max-w-6xl hidden">
+      <!-- (O resto do HTML permanece o mesmo) -->
+      <div class="flex justify-between items-center mb-4 px-2">
+        <button
+          id="back-to-modes"
+          class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-700"
+        >
+          ← Voltar
+        </button>
+        <div class="text-center">
+          <div class="font-bold text-2xl" id="attempts-counter">0</div>
+          <div class="text-sm text-gray-400">TENTATIVAS</div>
+        </div>
+        <div class="w-24"></div>
+      </div>
+      <div
+        id="multi-game-grid"
+        class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      ></div>
+      <div id="input-section" class="relative mt-4">
         <div class="flex gap-2">
           <input
             type="text"
             id="country-input"
             placeholder="Digite o nome de um país..."
-            class="w-full p-3 bg-gray-800 border-2 border-gray-600 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
+            class="w-full p-3 bg-gray-700 border-2 border-gray-600 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
             autocomplete="off"
-            aria-label="Entrada para nome do país"
           />
           <button
             id="guess-button"
-            class="bg-emerald-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+            class="bg-emerald-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-gray-500"
           >
             Adivinhar
           </button>
         </div>
         <div
           id="suggestions-box"
-          class="absolute z-10 w-full bg-gray-800 border border-gray-700 rounded-lg mt-1 max-h-48 overflow-y-auto hidden"
+          class="absolute bottom-full mb-1 z-10 w-full bg-gray-800 border border-gray-700 rounded-lg max-h-48 overflow-y-auto hidden"
         ></div>
       </div>
-
-      <!-- Mensagem de fim de jogo -->
       <div
         id="game-over-message"
         class="text-center mt-6 p-4 bg-gray-800 rounded-lg hidden"
       >
-        <p id="final-text" class="text-xl mb-2"></p>
+        <p id="final-text" class="text-xl mb-4"></p>
         <button
-          id="share-button"
-          class="bg-blue-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors mb-4"
+          id="new-game-button"
+          class="bg-blue-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
         >
-          Compartilhar Resultado 📋
+          Jogar Novamente
         </button>
-        <div id="map"></div>
       </div>
     </main>
-    <!-- FIM DO CONTAINER DO JOGO -->
-
-    <!-- ========================================================== -->
-    <!-- CORREÇÃO: ESTE CONTAINER AGORA ESTÁ FORA DO <main> ACIMA -->
-    <!-- ========================================================== -->
-    <div
-      id="already-played-container"
-      class="w-full max-w-3xl text-center hidden"
-    >
-      <h2 class="text-2xl font-bold text-amber-400">
-        Você já jogou o GeoTermo de hoje!
-      </h2>
-      <p class="text-gray-400 mt-2">Aqui está o seu resultado:</p>
-
-      <!-- Container para mostrar as tentativas passadas -->
-      <div id="past-guesses-container" class="space-y-2 my-4"></div>
-
-      <!-- Mensagem de resultado final (reutilizada) -->
-      <div
-        id="past-game-over-message"
-        class="text-center p-4 bg-gray-800 rounded-lg"
-      >
-        <p id="past-final-text" class="text-xl mb-2"></p>
-        <div
-          id="past-map"
-          style="height: 350px; border-radius: 8px; margin-top: 1rem"
-        ></div>
-      </div>
-
-      <!-- Estatísticas Gerais -->
-      <div id="stats-section" class="mt-6 p-4 bg-gray-800 rounded-lg">
-        <h3 class="text-xl font-bold mb-3 text-emerald-400">
-          Suas Estatísticas
-        </h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-lg">
-          <div>
-            <div class="font-bold text-2xl" id="stats-played">0</div>
-            <div class="text-sm text-gray-400">Jogos</div>
-          </div>
-          <div>
-            <div class="font-bold text-2xl" id="stats-wins">0%</div>
-            <div class="text-sm text-gray-400">Vitórias</div>
-          </div>
-          <div>
-            <div class="font-bold text-2xl" id="stats-current-streak">0</div>
-            <div class="text-sm text-gray-400">Sequência Atual</div>
-          </div>
-          <div>
-            <div class="font-bold text-2xl" id="stats-max-streak">0</div>
-            <div class="text-sm text-gray-400">Melhor Sequência</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Contador para o próximo jogo -->
-      <div id="countdown-section" class="mt-6">
-        <h3 class="text-xl font-bold">Próximo GeoTermo em:</h3>
-        <p
-          id="countdown-timer"
-          class="text-4xl font-mono font-bold text-emerald-400 mt-2"
-        >
-          00:00:00
-        </p>
-      </div>
-    </div>
 
     <footer class="text-center mt-8 text-gray-500 text-sm">
       <p>Inspirado em Wordle, Termo e Worldle.</p>
     </footer>
 
-    <!-- Script do Jogo -->
     <script src="script.js"></script>
   </body>
 </html>

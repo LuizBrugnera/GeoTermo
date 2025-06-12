@@ -1,35 +1,39 @@
 document.addEventListener("DOMContentLoaded", () => {
   // --- 1. ELEMENTOS DO DOM ---
-  // Elementos do jogo principal
+  const modeSelectionContainer = document.getElementById(
+    "mode-selection-container"
+  );
   const gameContainer = document.getElementById("game-container");
+  const subtitle = document.getElementById("subtitle");
+  const multiGameGrid = document.getElementById("multi-game-grid");
   const countryInput = document.getElementById("country-input");
   const guessButton = document.getElementById("guess-button");
-  const guessesContainer = document.getElementById("guesses-container");
   const suggestionsBox = document.getElementById("suggestions-box");
+  const attemptsCounter = document.getElementById("attempts-counter");
   const gameOverMessage = document.getElementById("game-over-message");
   const finalText = document.getElementById("final-text");
-  const shareButton = document.getElementById("share-button");
-  const mapContainer = document.getElementById("map");
+  const statsPreviewSection = document.getElementById("stats-preview-section");
 
-  // Elementos da tela "Já Jogou Hoje"
-  const alreadyPlayedContainer = document.getElementById(
-    "already-played-container"
-  );
-  const pastGuessesContainer = document.getElementById(
-    "past-guesses-container"
-  );
-  const pastFinalText = document.getElementById("past-final-text");
-  const pastMapContainer = document.getElementById("past-map");
-  const countdownTimer = document.getElementById("countdown-timer");
+  // Botões
+  document
+    .getElementById("mode-solo")
+    .addEventListener("click", () => startGame("solo"));
+  document
+    .getElementById("mode-duplo")
+    .addEventListener("click", () => startGame("duplo"));
+  document
+    .getElementById("mode-quadruplo")
+    .addEventListener("click", () => startGame("quadruplo"));
+  document
+    .getElementById("back-to-modes")
+    .addEventListener("click", showModeSelection);
+  document
+    .getElementById("new-game-button")
+    .addEventListener("click", showModeSelection);
 
-  // Elementos das Estatísticas
-  const statsPlayed = document.getElementById("stats-played");
-  const statsWins = document.getElementById("stats-wins");
-  const statsCurrentStreak = document.getElementById("stats-current-streak");
-  const statsMaxStreak = document.getElementById("stats-max-streak");
-
-  // --- 2. DADOS E ESTADO INICIAL DO JOGO ---
-  // IMPORTANTE: Preencha esta lista com todos os países que você tiver!
+  // --- 2. DADOS E CONFIGURAÇÕES ---
+  // CORREÇÃO: Removido o 'import' e o array de países foi colocado aqui.
+  // PREENCHA COM SUA LISTA COMPLETA!
   const countries = [
     { name: "Afeganistão", lat: 33.9391, lon: 67.71, population: 43844111 },
     {
@@ -315,14 +319,20 @@ document.addEventListener("DOMContentLoaded", () => {
     .map((c) => ({ ...c, norm: normalize(c.name) }))
     .sort((a, b) => a.norm.localeCompare(b.norm));
 
-  const MAX_ATTEMPTS = 6;
-  let remainingAttempts,
-    targetCountry,
-    gameOver,
-    guessHistory,
-    guessHistoryData;
+  const MODE_CONFIG = {
+    solo: { count: 1, attempts: 6, title: "Solo (Diário)" },
+    duplo: { count: 2, attempts: 8, title: "Duplo" },
+    quadruplo: { count: 4, attempts: 10, title: "Quádruplo" },
+  };
 
-  // --- 3. FUNÇÕES DE LÓGICA E CÁLCULO (sem alterações) ---
+  let currentGameMode = null;
+  let targetCountries = [];
+  let solvedStates = [];
+  let remainingAttempts = 0;
+  let gameOver = false;
+
+  // --- 3. FUNÇÕES DE LÓGICA DE JOGO (Cálculos, etc) ---
+  // ... (O resto do script é idêntico ao anterior e está correto) ...
   function normalize(text) {
     return text
       .normalize("NFD")
@@ -334,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
   }
   function seededRandom(seed) {
-    const x = Math.sin(seed) * 10000;
+    let x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
   }
   function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -361,170 +371,117 @@ document.addEventListener("DOMContentLoaded", () => {
       Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
   }
-  function getDirectionArrow(bearing) {
-    if (bearing >= 337.5 || bearing < 22.5) return "⬆️";
-    if (bearing >= 22.5 && bearing < 67.5) return "↗️";
-    if (bearing >= 67.5 && bearing < 112.5) return "➡️";
-    if (bearing >= 112.5 && bearing < 157.5) return "↘️";
-    if (bearing >= 157.5 && bearing < 202.5) return "⬇️";
-    if (bearing >= 202.5 && bearing < 247.5) return "↙️";
-    if (bearing >= 247.5 && bearing < 292.5) return "⬅️";
-    if (bearing >= 292.5 && bearing < 337.5) return "↖️";
+  function getDirectionArrow(b) {
+    if (b >= 337.5 || b < 22.5) return "⬆️";
+    if (b >= 22.5 && b < 67.5) return "↗️";
+    if (b >= 67.5 && b < 112.5) return "➡️";
+    if (b >= 112.5 && b < 157.5) return "↘️";
+    if (b >= 157.5 && b < 202.5) return "⬇️";
+    if (b >= 202.5 && b < 247.5) return "↙️";
+    if (b >= 247.5 && b < 292.5) return "⬅️";
+    if (b >= 292.5 && b < 337.5) return "↖️";
     return "🌍";
   }
 
-  // --- 4. FUNÇÃO DE INICIALIZAÇÃO E ROTEAMENTO ---
-  function initGame() {
-    const todaySeed = getDailySeed();
-    const dailyGames =
-      JSON.parse(localStorage.getItem("geoTermoDailyGames")) || {};
-    const stats = loadStats();
-
-    const dailyIndex = Math.floor(seededRandom(todaySeed) * countries.length);
-    targetCountry = countries[dailyIndex];
-
-    if (dailyGames[todaySeed]) {
-      showAlreadyPlayedScreen(dailyGames[todaySeed], stats);
-    } else {
-      startNewGame();
-    }
+  function showModeSelection() {
+    gameContainer.classList.add("hidden");
+    modeSelectionContainer.classList.remove("hidden");
+    subtitle.textContent = "Escolha um modo de jogo!";
+    checkDailyStatus();
   }
 
-  function startNewGame() {
-    gameContainer.classList.remove("hidden");
-    alreadyPlayedContainer.classList.add("hidden");
-
-    remainingAttempts = MAX_ATTEMPTS;
+  function startGame(mode) {
+    currentGameMode = mode;
+    const config = MODE_CONFIG[mode];
+    targetCountries = [];
+    let usedIndexes = new Set();
+    let seed = mode === "solo" ? getDailySeed() : Date.now();
+    while (targetCountries.length < config.count) {
+      const randomIndex = Math.floor(seededRandom(seed++) * countries.length);
+      if (!usedIndexes.has(randomIndex)) {
+        targetCountries.push(countries[randomIndex]);
+        usedIndexes.add(randomIndex);
+      }
+    }
+    remainingAttempts = config.attempts;
+    solvedStates = Array(config.count).fill(false);
     gameOver = false;
-    guessHistory = [];
-    guessHistoryData = [];
-
-    guessesContainer.innerHTML = "";
+    modeSelectionContainer.classList.add("hidden");
+    gameContainer.classList.remove("hidden");
+    subtitle.textContent = config.title;
     gameOverMessage.classList.add("hidden");
     countryInput.disabled = false;
     guessButton.disabled = false;
     countryInput.value = "";
     countryInput.focus();
+    createGameBoards(config.count);
+    updateAttemptsCounter();
   }
 
-  function showAlreadyPlayedScreen(gameData, stats) {
-    gameContainer.classList.add("hidden");
-    alreadyPlayedContainer.classList.remove("hidden");
-
-    pastGuessesContainer.innerHTML = "";
-
-    gameData.guesses.forEach((guess) => {
-      const distance = calculateDistance(
-        guess.lat,
-        guess.lon,
-        targetCountry.lat,
-        targetCountry.lon
-      );
-      const bearing = calculateBearing(
-        guess.lat,
-        guess.lon,
-        targetCountry.lat,
-        targetCountry.lon
-      );
-      const direction = distance < 1 ? "🎉" : getDirectionArrow(bearing);
-      const proximity = Math.max(0, 100 - (distance / 20000) * 100);
-      let populationHint = "↔️";
-      if (targetCountry.population > guess.population) populationHint = "⬆️";
-      else if (targetCountry.population < guess.population)
-        populationHint = "⬇️";
-      if (distance < 1) populationHint = "✅";
-
-      addGuessToGrid(
-        guess.name,
-        distance,
-        direction,
-        populationHint,
-        proximity,
-        pastGuessesContainer
-      );
-    });
-
-    if (gameData.win) {
-      pastFinalText.innerHTML = `Você acertou! O país era <strong class="text-emerald-400">${targetCountry.name}</strong>.`;
-    } else {
-      pastFinalText.innerHTML = `Você não acertou. O país era <strong class="text-red-400">${targetCountry.name}</strong>.`;
+  function createGameBoards(count) {
+    multiGameGrid.innerHTML = "";
+    multiGameGrid.className = `grid grid-cols-1 ${
+      count > 1 ? "md:grid-cols-2" : ""
+    } gap-4`;
+    for (let i = 0; i < count; i++) {
+      const board = document.createElement("div");
+      board.id = `game-board-${i}`;
+      board.className = "game-board";
+      board.innerHTML = `
+                <h3 class="font-bold text-center mb-2 text-gray-400">GeoTermo #${
+                  i + 1
+                }</h3>
+                <div class="hidden md:grid grid-cols-5 gap-1 text-xs font-bold text-gray-500 mb-2 px-1">
+                    <div>País</div><div class="text-center">Dist.</div><div class="text-center">Dir.</div><div class="text-center">Pop.</div><div class="text-center">Prox.</div>
+                </div>
+                <div id="guesses-container-${i}" class="space-y-1" style="max-height: 250px; overflow-y: auto;"></div>
+            `;
+      multiGameGrid.appendChild(board);
     }
-
-    displayMap(targetCountry, gameData.guesses, pastMapContainer);
-    displayStats(stats);
-    startCountdown();
   }
 
-  // --- 5. LÓGICA DE ESTATÍSTICAS E LOCALSTORAGE ---
-  const defaultStats = {
-    gamesPlayed: 0,
-    wins: 0,
-    currentStreak: 0,
-    maxStreak: 0,
-  };
-  function loadStats() {
-    return JSON.parse(localStorage.getItem("geoTermoStats")) || defaultStats;
-  }
-  function saveStats(stats) {
-    localStorage.setItem("geoTermoStats", JSON.stringify(stats));
-  }
-  function displayStats(stats) {
-    statsPlayed.textContent = stats.gamesPlayed;
-    statsWins.textContent =
-      stats.gamesPlayed > 0
-        ? `${Math.round((stats.wins / stats.gamesPlayed) * 100)}%`
-        : "0%";
-    statsCurrentStreak.textContent = stats.currentStreak;
-    statsMaxStreak.textContent = stats.maxStreak;
-  }
-
-  // --- 6. CONTADOR REGRESSIVO ---
-  function startCountdown() {
-    const countdownInterval = setInterval(() => {
-      const now = new Date();
-      const tomorrow = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1
-      );
-      const diff = tomorrow - now;
-
-      if (diff <= 0) {
-        clearInterval(countdownInterval);
-        window.location.reload();
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      countdownTimer.textContent = `${String(hours).padStart(2, "0")}:${String(
-        minutes
-      ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }, 1000);
-  }
-
-  // --- 7. FUNÇÕES DE JOGO ATIVO ---
   function handleGuess() {
     if (gameOver) return;
     const guessName = countryInput.value.trim();
     const guessedCountry = countries.find(
       (c) => c.norm === normalize(guessName)
     );
-
     if (!guessedCountry) {
-      alert("País não encontrado. Use uma das sugestões.");
+      alert("País não encontrado.");
       return;
     }
-
     remainingAttempts--;
-    const distance = calculateDistance(
-      guessedCountry.lat,
-      guessedCountry.lon,
-      targetCountry.lat,
-      targetCountry.lon
+    targetCountries.forEach((target, index) => {
+      if (!solvedStates[index]) {
+        const distance = calculateDistance(
+          guessedCountry.lat,
+          guessedCountry.lon,
+          target.lat,
+          target.lon
+        );
+        addGuessToBoard(index, guessedCountry, target, distance);
+        if (distance < 1) {
+          solvedStates[index] = true;
+          markBoardAsSolved(index);
+        }
+      }
+    });
+    countryInput.value = "";
+    hideSuggestions();
+    updateAttemptsCounter();
+    checkEndCondition();
+  }
+
+  function addGuessToBoard(
+    boardIndex,
+    guessedCountry,
+    targetCountry,
+    distance
+  ) {
+    const container = document.getElementById(
+      `guesses-container-${boardIndex}`
     );
+    if (!container) return;
     const bearing = calculateBearing(
       guessedCountry.lat,
       guessedCountry.lon,
@@ -533,132 +490,130 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     const direction = distance < 1 ? "🎉" : getDirectionArrow(bearing);
     const proximity = Math.max(0, 100 - (distance / 20000) * 100);
-    let populationHint = "↔️";
-    if (targetCountry.population > guessedCountry.population)
+    let populationHint = "●";
+    if (distance < 1) populationHint = "✅";
+    else if (targetCountry.population > guessedCountry.population)
       populationHint = "⬆️";
     else if (targetCountry.population < guessedCountry.population)
       populationHint = "⬇️";
-    if (distance < 1) populationHint = "✅";
-
-    addGuessToGrid(
-      guessedCountry.name,
-      distance,
-      direction,
-      populationHint,
-      proximity,
-      guessesContainer
-    );
-    guessHistory.push(proximity);
-    guessHistoryData.push(guessedCountry);
-    countryInput.value = "";
-    hideSuggestions();
-
-    if (distance < 1) endGame(true);
-    else if (remainingAttempts === 0) endGame(false);
-  }
-
-  function addGuessToGrid(
-    name,
-    distance,
-    direction,
-    populationHint,
-    proximity,
-    container
-  ) {
     const guessRow = document.createElement("div");
-    // CORRIGIDO: O grid agora é de 5 colunas
     guessRow.className =
-      "grid grid-cols-5 gap-1 md:gap-2 items-center bg-gray-700 p-2 rounded-lg text-sm md:text-base animate-reveal";
-    // CORRIGIDO: O innerHTML foi preenchido corretamente
+      "grid grid-cols-5 gap-1 items-center bg-gray-700 p-1.5 rounded text-sm";
     guessRow.innerHTML = `
-            <div class="truncate pr-2">${name}</div>
-            <div class="text-center">${Math.round(distance).toLocaleString(
-              "pt-BR"
-            )} km</div>
-            <div class="text-center text-2xl">${direction}</div>
-            <div class="text-center text-2xl font-bold">${populationHint}</div>
-            <div class="flex items-center gap-2">
-                <div class="w-full bg-gray-600 rounded-full h-5 overflow-hidden">
-                    <div class="h-full rounded-full progress-bar-gradient" style="width: ${proximity}%;"></div>
-                </div>
+            <div class="truncate pr-1">${guessedCountry.name}</div>
+            <div class="text-center text-xs">${Math.round(
+              distance
+            ).toLocaleString()}km</div>
+            <div class="text-center text-xl">${direction}</div>
+            <div class="text-center text-xl font-bold">${populationHint}</div>
+            <div class="flex items-center gap-1">
+                <div class="w-full bg-gray-600 rounded-full h-4"><div class="h-full rounded-full progress-bar-gradient" style="width: ${proximity}%;"></div></div>
                 <span class="font-bold text-xs">${Math.round(proximity)}%</span>
             </div>
         `;
     container.appendChild(guessRow);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function markBoardAsSolved(index) {
+    const board = document.getElementById(`game-board-${index}`);
+    board.classList.add("game-board-solved");
+    const title = board.querySelector("h3");
+    title.innerHTML = `✅ ${targetCountries[index].name}`;
+    title.classList.remove("text-gray-400");
+    title.classList.add("text-emerald-400");
+  }
+
+  function checkEndCondition() {
+    const allSolved = solvedStates.every((s) => s === true);
+    if (allSolved) endGame(true);
+    else if (remainingAttempts === 0) endGame(false);
   }
 
   function endGame(isWin) {
     gameOver = true;
     countryInput.disabled = true;
     guessButton.disabled = true;
+    let message = "";
+    if (isWin) {
+      message = "Parabéns, você acertou todos os países!";
+      if (currentGameMode === "solo") updateStats(true);
+    } else {
+      message = "Fim de jogo! Os países secretos eram: <br/>";
+      targetCountries.forEach((country, index) => {
+        if (!solvedStates[index]) {
+          message += `<strong class="text-red-400">${country.name}</strong><br/>`;
+        }
+      });
+      if (currentGameMode === "solo") updateStats(false);
+    }
+    finalText.innerHTML = message;
+    gameOverMessage.classList.remove("hidden");
+  }
 
+  function updateAttemptsCounter() {
+    attemptsCounter.textContent = remainingAttempts;
+  }
+
+  function checkDailyStatus() {
+    const dailyGames =
+      JSON.parse(localStorage.getItem("geoTermoDailyGames")) || {};
+    const todaySeed = getDailySeed();
+    if (dailyGames[todaySeed]) {
+      document.getElementById("mode-solo").disabled = true;
+      document.getElementById("mode-solo").textContent = "Solo (Concluído)";
+      const stats = loadStats();
+      statsPreviewSection.innerHTML = `<h3 class="text-xl font-bold mb-3 text-amber-400">Estatísticas (Diário)</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-lg"><div><div class="font-bold text-2xl">${
+        stats.gamesPlayed
+      }</div><div class="text-sm">Jogos</div></div><div><div class="font-bold text-2xl">${
+        stats.gamesPlayed > 0
+          ? Math.round((stats.wins / stats.gamesPlayed) * 100)
+          : 0
+      }%</div><div class="text-sm">Vitórias</div></div><div><div class="font-bold text-2xl">${
+        stats.currentStreak
+      }</div><div class="text-sm">Seq. Atual</div></div><div><div class="font-bold text-2xl">${
+        stats.maxStreak
+      }</div><div class="text-sm">Melhor Seq.</div></div></div>`;
+      statsPreviewSection.classList.remove("hidden");
+    } else {
+      statsPreviewSection.classList.add("hidden");
+      document.getElementById("mode-solo").disabled = false;
+      document.getElementById("mode-solo").textContent = "Solo (Diário)";
+    }
+  }
+
+  function updateStats(isWin) {
     const stats = loadStats();
     stats.gamesPlayed++;
     if (isWin) {
       stats.wins++;
       stats.currentStreak++;
       stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
-      finalText.innerHTML = `Parabéns! Você acertou! O país era <strong class="text-emerald-400">${targetCountry.name}</strong>.`;
     } else {
       stats.currentStreak = 0;
-      finalText.innerHTML = `Fim de jogo! O país secreto era <strong class="text-red-400">${targetCountry.name}</strong>.`;
     }
     saveStats(stats);
-
     const todaySeed = getDailySeed();
     const dailyGames =
       JSON.parse(localStorage.getItem("geoTermoDailyGames")) || {};
-    dailyGames[todaySeed] = { win: isWin, guesses: guessHistoryData };
+    dailyGames[todaySeed] = { win: isWin };
     localStorage.setItem("geoTermoDailyGames", JSON.stringify(dailyGames));
-
-    gameOverMessage.classList.remove("hidden");
-    displayMap(targetCountry, guessHistoryData, mapContainer);
   }
 
-  function displayMap(target, guesses, mapContainerElement) {
-    // Limpa o container do mapa para evitar erros de reinicialização do Leaflet
-    mapContainerElement.innerHTML = "";
-
-    const localMap = L.map(mapContainerElement).setView([20, 0], 2);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(localMap);
-
-    const targetMarker = L.circleMarker([target.lat, target.lon], {
-      radius: 8,
-      color: "#22c55e",
-      fillColor: "#22c55e",
-      fillOpacity: 0.8,
-    }).addTo(localMap);
-    targetMarker.bindPopup(`<b>País Secreto: ${target.name}</b>`).openPopup();
-
-    guesses.forEach((guess, index) => {
-      const guessMarker = L.circleMarker([guess.lat, guess.lon], {
-        radius: 6,
-        color: "#ef4444",
-        fillColor: "#ef4444",
-        fillOpacity: 0.6,
-      }).addTo(localMap);
-      guessMarker.bindPopup(`<b>${index + 1}º Palpite:</b> ${guess.name}`);
-      L.polyline(
-        [
-          [guess.lat, guess.lon],
-          [target.lat, target.lon],
-        ],
-        { color: "#4a5568", weight: 2, dashArray: "5, 5" }
-      ).addTo(localMap);
-    });
+  function loadStats() {
+    return (
+      JSON.parse(localStorage.getItem("geoTermoStats")) || {
+        gamesPlayed: 0,
+        wins: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      }
+    );
+  }
+  function saveStats(stats) {
+    localStorage.setItem("geoTermoStats", JSON.stringify(stats));
   }
 
-  // --- 8. AUTOCOMPLETE E EVENT LISTENERS ---
-  function handleAutocomplete() {
-    /* ... código original ... */
-  }
-  function hideSuggestions() {
-    /* ... código original ... */
-  }
-  // (O código de autocomplete e os event listeners permanecem os mesmos)
   function handleAutocomplete() {
     const value = normalize(countryInput.value);
     if (!value) return hideSuggestions();
@@ -683,7 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   guessButton.addEventListener("click", handleGuess);
   countryInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !gameOver) handleGuess();
+    if (e.key === "Enter") handleGuess();
   });
   countryInput.addEventListener("input", handleAutocomplete);
   suggestionsBox.addEventListener("click", (e) => {
@@ -693,52 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
       countryInput.focus();
     }
   });
-  document.addEventListener("click", (e) => {
-    if (
-      !countryInput.contains(e.target) &&
-      !suggestionsBox.contains(e.target)
-    ) {
-      hideSuggestions();
-    }
-  });
-  shareButton.addEventListener("click", () => {
-    const attemptCount = MAX_ATTEMPTS - remainingAttempts;
-    const title = `GeoTermo ${new Date().toLocaleDateString(
-      "pt-BR"
-    )} ${attemptCount}/${MAX_ATTEMPTS}`;
-    const squares = guessHistory
-      .map((prox) => {
-        if (prox > 95) return "🟩";
-        if (prox > 75) return "🟨";
-        if (prox > 50) return "🟧";
-        return "🟥";
-      })
-      .join("");
-    const textToCopy = `${title}\n${squares}\n\nJogue também: [LINK DO SEU JOGO]`;
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        alert("Resultado copiado para a área de transferência!");
-      })
-      .catch((err) => {
-        console.error("Erro ao copiar: ", err);
-      });
-  });
 
-  // --- 9. INICIA O JOGO AO CARREGAR A PÁGINA ---
-  initGame();
+  showModeSelection();
 });
-
-// A animação no final do arquivo permanece a mesma
-const styleSheet = document.createElement("style");
-styleSheet.type = "text/css";
-styleSheet.innerText = `
-@keyframes reveal {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-}
-.animate-reveal {
-  animation: reveal 0.3s ease-out;
-}
-`;
-document.head.appendChild(styleSheet);
